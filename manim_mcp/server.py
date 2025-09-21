@@ -4,6 +4,8 @@ import json
 import argparse
 import tempfile
 from typing import Dict, Any, List
+import importlib
+import pkgutil
 
 from manim import config, tempconfig
 from manim import Scene, VGroup, Axes, Dot, Line, MathTex, Square, FadeIn, FadeOut, Create, Write, Transform
@@ -54,11 +56,36 @@ class FourierSquareWave(Scene):
         self.wait(1)
 
 # ---------------
-# Render Helpers
+# Render Helpers & Discovery
 # ---------------
-SCENE_REGISTRY = {
-    "fourier_series": FourierSquareWave,
-}
+PARAM_SCHEMAS: Dict[str, Any] = {}
+
+def discover_scenes() -> Dict[str, Any]:
+    """Discover available scenes, including built-ins and plugins under manim_mcp.scenes."""
+    registry: Dict[str, Any] = {}
+
+    # Built-in scene(s)
+    registry["fourier_series"] = FourierSquareWave
+    PARAM_SCHEMAS["fourier_series"] = {"terms": "List[int] (default [1,3,5,7,9])"}
+
+    # Plugin discovery: modules in manim_mcp.scenes that define SCENE_KEY/SCENE_CLASS
+    try:
+        import manim_mcp.scenes as scenes_pkg
+        for modinfo in pkgutil.iter_modules(scenes_pkg.__path__):
+            module = importlib.import_module(f"{scenes_pkg.__name__}.{modinfo.name}")
+            key = getattr(module, "SCENE_KEY", None)
+            cls = getattr(module, "SCENE_CLASS", None)
+            schema = getattr(module, "PARAM_SCHEMA", {}) or {}
+            if key and cls:
+                registry[key] = cls
+                PARAM_SCHEMAS[key] = schema
+    except Exception:
+        # Non-fatal; if discovery fails we still have built-ins
+        pass
+
+    return registry
+
+SCENE_REGISTRY = discover_scenes()
 
 def render_request(req: Dict[str, Any]) -> str:
     vis_type = req.get("type") or req.get("visualization_type")
@@ -149,6 +176,14 @@ def create_app() -> FastAPI:
     @app.get('/health')
     async def health():
         return {"status": "ok"}
+
+    @app.get('/scenes')
+    async def scenes():
+        # Sorted keys for stable output
+        return {
+            "scenes": sorted(SCENE_REGISTRY.keys()),
+            "schemas": PARAM_SCHEMAS,
+        }
 
     @app.post('/render', response_model=RenderResponse)
     async def render(req: RenderRequest):

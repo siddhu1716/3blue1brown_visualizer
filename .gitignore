@@ -1,5 +1,6 @@
 .backend_env/
 .venv/
+.manim_env/
 # Node.js
 node_modules/
 .next/
