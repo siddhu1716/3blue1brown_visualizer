@@ -6,7 +6,9 @@ A local-first web app that transforms natural language prompts into stunning mat
 
 Below is an example of a generated visualization: a Fourier series approximation of a square wave.
 
-[Watch the Fourier Square Wave Demo](renders/FourierSquareWave.mp4)
+<video src="renders/FourierSquareWave.mp4" controls width="600">
+  Your browser does not support the video tag.
+</video>
 
 ## User Interface
 
