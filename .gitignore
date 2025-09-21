@@ -1,2 +1,13 @@
 .backend_env/
 .venv/
+# Node.js
+node_modules/
+.next/
+dist/
+
+# Python
+.venv/
+__pycache__/
+
+# macOS
+.DS_Store
