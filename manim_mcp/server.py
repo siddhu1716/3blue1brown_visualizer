@@ -8,10 +8,10 @@ import importlib
 import pkgutil
 
 from manim import config, tempconfig
-from manim import Scene, VGroup, Axes, Dot, Line, MathTex, Square, FadeIn, FadeOut, Create, Write, Transform
+from manim import Scene, VGroup, Axes, Dot, Line, Square, FadeIn, FadeOut, Create, Write, Transform, Text
 from manim import BLUE, YELLOW, WHITE
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
 
@@ -23,12 +23,13 @@ os.makedirs(RENDERS_DIR, exist_ok=True)
 # -----------------
 class FourierSquareWave(Scene):
     def __init__(self, terms: List[int] = None, **kwargs):
-        super().__init__(**kwargs)
+        # Do not forward unknown kwargs to Scene to avoid TypeError for things like 'target_function'
+        super().__init__()
         self.terms = terms or [1, 3, 5, 7, 9]
 
     def construct(self):
         axes = Axes(x_range=[0, 2 * np.pi, np.pi/2], y_range=[-1.5, 1.5, 1], x_length=10, y_length=4)
-        labels = axes.get_axis_labels(MathTex("x"), MathTex("f(x)"))
+        labels = axes.get_axis_labels(Text("x"), Text("f(x)"))
         self.play(Create(axes), Write(labels))
 
         x = np.linspace(0, 2 * np.pi, 1000)
@@ -95,7 +96,7 @@ def render_request(req: Dict[str, Any]) -> str:
         # Fallback: create a minimal scene
         class Placeholder(Scene):
             def construct(self):
-                self.play(Write(MathTex("Unsupported~visualization")))
+                self.play(Write(Text("Unsupported visualization")))
                 self.wait(1)
         scene_cls = Placeholder
         scene_name = "Placeholder"
@@ -191,8 +192,12 @@ def create_app() -> FastAPI:
             "type": req.type or req.visualization_type,
             "parameters": req.parameters or {},
         }
-        out_path = render_request(data)
-        return RenderResponse(video_path=os.path.abspath(out_path))
+        try:
+            out_path = render_request(data)
+            return RenderResponse(video_path=os.path.abspath(out_path))
+        except Exception as e:
+            # Surface a readable error to callers instead of a generic 500
+            raise HTTPException(status_code=400, detail=f"Render failed: {str(e)}")
 
     return app
 

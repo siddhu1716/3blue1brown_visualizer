@@ -63,6 +63,96 @@ class LLMService:
             logger.error(f"Error calling LLM service: {e}")
             return self._get_mock_response(user_prompt)
 
+    async def generate_explanation(self, refined_request: Dict[str, Any], user_prompt: str) -> str:
+        """
+        Generate a concise, educational explanation for the visualization and topic.
+        """
+        vis_type = refined_request.get("visualization_type", "unknown")
+        params = refined_request.get("parameters", {})
+        description = refined_request.get("description") or user_prompt
+
+        system_prompt = (
+            "You are an expert math tutor. Explain clearly and concisely what the visualization shows, "
+            "including the underlying math and how to interpret the animation. Use approachable language and "
+            "avoid overly technical jargon unless necessary. Keep it under 200 words."
+        )
+
+        user_instruction = json.dumps({
+            "visualization_type": vis_type,
+            "parameters": params,
+            "description": description,
+        })
+
+        if self.use_mock:
+            return self._mock_explanation(vis_type, params, description)
+
+        try:
+            if self.use_ollama:
+                return await self._call_ollama_for_text(system_prompt, user_instruction)
+            else:
+                return await self._call_openai_for_text(system_prompt, user_instruction)
+        except Exception as e:
+            logger.error(f"Error generating explanation: {e}")
+            return self._mock_explanation(vis_type, params, description)
+
+    async def _call_openai_for_text(self, system_prompt: str, user_prompt: str) -> str:
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,
+        )
+        return response.choices[0].message.content.strip()
+
+    async def _call_ollama_for_text(self, system_prompt: str, user_prompt: str) -> str:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.ollama_url}/api/generate",
+                json={
+                    "model": "llama3.1:8b",
+                    "prompt": f"{system_prompt}\n\nUser: {user_prompt}\nAssistant:",
+                    "stream": False,
+                },
+            )
+            response.raise_for_status()
+            content = response.json()["response"]
+            return content.strip()
+
+    def _mock_explanation(self, vis_type: str, params: Dict[str, Any], description: str) -> str:
+        if vis_type == "fourier_series":
+            terms = params.get("terms", [])
+            return (
+                "This animation builds a square wave using a Fourier series. "
+                "At each step, we add an odd harmonic (1st, 3rd, 5th, …) of sine waves with decreasing amplitudes. "
+                f"Here, the terms used are {terms if terms else '[default terms]'}. "
+                "As more terms are added, the approximation sharpens near the jumps (Gibbs phenomenon), and the curve "
+                "looks increasingly like a square wave."
+            )
+        if vis_type == "linear_transform":
+            return (
+                "This shows how a 2×2 matrix transforms points in the plane. "
+                "Grids and shapes are stretched, rotated, or sheared according to the matrix. "
+                "If eigenvectors are shown, those directions remain on their line while being scaled by the eigenvalues."
+            )
+        if vis_type == "function_plot":
+            expr = params.get("expression", "f(x)")
+            return (
+                f"This plots the function {expr}. You can see how the value changes with x and observe key features "
+                "like growth, curvature, and symmetry."
+            )
+        if vis_type == "taylor_series":
+            return (
+                "This illustrates a Taylor series approximation: we build a polynomial around a point to match the "
+                "function’s value and derivatives. As we include more terms, the polynomial better matches the function near the center."
+            )
+        if vis_type == "eigenvalue_demo":
+            return (
+                "This demonstrates eigenvalues and eigenvectors: along eigenvector directions, the transformation acts "
+                "as a simple scaling by the corresponding eigenvalue."
+            )
+        return description or "This animation visualizes the requested concept."
     async def _call_openai(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
         """Call OpenAI API"""
         response = self.client.chat.completions.create(

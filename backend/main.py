@@ -37,6 +37,7 @@ class VisualizationResponse(BaseModel):
     video_url: str
     refined_prompt: str
     visualization_type: str
+    explanation: str
 
 @app.get("/")
 async def root():
@@ -55,13 +56,17 @@ async def generate_visualization(request: PromptRequest):
         video_path = await mcp_client.generate_visualization(refined_request)
         logger.info(f"Generated video at: {video_path}")
         
+        # Step 2.5: Generate an educational explanation
+        explanation = await llm_service.generate_explanation(refined_request, request.prompt)
+        
         # Step 3: Return the response
         video_url = f"/renders/{os.path.basename(video_path)}"
         
         return VisualizationResponse(
             video_url=video_url,
             refined_prompt=refined_request.get("description", request.prompt),
-            visualization_type=refined_request.get("visualization_type", "unknown")
+            visualization_type=refined_request.get("visualization_type", "unknown"),
+            explanation=explanation,
         )
         
     except Exception as e:

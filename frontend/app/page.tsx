@@ -10,6 +10,7 @@ interface VisualizationResult {
   video_url: string
   refined_prompt: string
   visualization_type: string
+  explanation: string
 }
 
 export default function Home() {
@@ -39,7 +40,18 @@ export default function Home() {
       }
 
       const data = await response.json()
-      setResult(data)
+      // Normalize video_url to always include the /renders prefix
+      const normalizedUrl = (() => {
+        const url: string = data.video_url || ''
+        if (!url) return url
+        // If it's an absolute URL, leave it as-is
+        if (/^https?:\/\//i.test(url)) return url
+        // Ensure it starts with /renders/
+        if (url.startsWith('/renders/')) return url
+        const cleaned = url.replace(/^\/+/, '')
+        return `/renders/${cleaned}`
+      })()
+      setResult({ ...data, video_url: normalizedUrl })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -147,6 +159,13 @@ export default function Home() {
                   Your browser does not support the video tag.
                 </video>
               </div>
+
+              {result.explanation && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-sm text-gray-700 mb-2">Explanation:</h4>
+                  <p className="text-sm text-gray-600 whitespace-pre-line">{result.explanation}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
