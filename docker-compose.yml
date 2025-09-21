@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - renders:/app/renders
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      - MANIM_MCP_URL=http://manim_mcp:9000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - USE_OLLAMA=${USE_OLLAMA}
+      - OLLAMA_URL=${OLLAMA_URL}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - manim_mcp
+    volumes:
+      - renders:/app/renders
+
+  manim_mcp:
+    build:
+      context: .
+      dockerfile: manim_mcp/Dockerfile
+    ports:
+      - "9000:9000"
+    volumes:
+      - renders:/app/renders
+
+volumes:
+  renders:
+    driver: local

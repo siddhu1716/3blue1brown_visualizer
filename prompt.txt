@@ -1,0 +1,69 @@
+Build a local-first web app where users type a natural language prompt → an LLM refines it into a structured request → the Manim MCP server generates the visualization → result is shown in the frontend.
+🔹 Core Flow
+Frontend (React + Next.js + Tailwind)
+Simple UI:
+Input box for natural language prompt.
+“Generate Visualization” button.
+Area to display the returned video/GIF.
+Backend Orchestration (FastAPI or Node)
+Handles requests from the frontend.
+Passes the prompt to Ollama (local) or OpenAI API for refinement.
+Example:
+User input: "Show me how a Fourier series builds a square wave"
+Refined LLM output: { "visualization": "fourier_series", "terms": [1,3,5,7,9,19] }
+Calls Manim MCP with the structured request.
+Manim MCP Integration
+Use MCP as the tooling bridge instead of executing raw Python.
+Define MCP endpoints like:
+render_fourier_series(terms: List[int])
+render_linear_transform(matrix: [[float]])
+render_function_plot(expr: str)
+MCP executes the relevant Manim Scene internally.
+Returns the path/URL of the rendered video.
+Result Delivery
+Backend fetches the rendered file from MCP.
+Serves it back to the frontend.
+Frontend displays it in a video/GIF player.
+🔹 Tech Stack
+Frontend: Next.js, Tailwind, shadcn/ui
+Backend: FastAPI (Python)
+LLM Refinement: Ollama (local) or OpenAI API
+Visualization Engine: Manim MCP server (runs locally)
+Deployment: Docker Compose for easy setup
+🔹 Repo Structure
+manim-visualizer-mcp/
+│── frontend/             # Next.js app
+│   ├── components/       
+│   ├── pages/            
+│   └── ...
+│
+│── backend/              # FastAPI app
+│   ├── main.py           # API endpoints
+│   ├── llm.py            # prompt refinement logic
+│   ├── mcp_client.py     # talks to Manim MCP
+│   └── requirements.txt  
+│
+│── manim_mcp/            # Manim MCP server + scenes
+│   ├── scenes/           # Fourier, Eigenvectors, etc.
+│   └── server.py         # MCP entrypoint
+│
+│── renders/              # generated animations
+│
+│── docker-compose.yml
+│── README.md
+🔹 User Workflow
+Clone repo:
+git clone https://github.com/your-org/manim-visualizer-mcp.git
+cd manim-visualizer-mcp
+docker-compose up
+Open http://localhost:3000
+Enter prompt → refined by LLM → MCP renders → animation appears.
+🔹 Stretch Goals
+Add more MCP endpoints for common math visualizations.
+Allow interactive controls (sliders for frequency, matrix entries, etc.).
+Add a “Tutor Mode” where the LLM also explains what the animation means.
+👉 Goal for Cursor:
+Generate the initial scaffold:
+Frontend UI
+Backend API
+Manim MCP server with at least one demo visualization (e.g., Fourier series).
