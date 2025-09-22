@@ -177,4 +177,4 @@ Here’s a glimpse of the app’s intuitive UI, designed for seamless interactio
 
 ## License
 
-MIT
+Apache2.0
